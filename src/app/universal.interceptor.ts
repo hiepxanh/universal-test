@@ -26,11 +26,6 @@ export class UniversalInterceptor implements HttpInterceptor {
       serverReq = req.clone({ url: newUrl });
     }
 
-    console.log(`intercept reading request: \n
-    req.url ${req.url} | this.request.baseUrl ${this.request.baseUrl} | \n
-    this.request.protocol ${this.request.protocol} | this.serverReq ${serverReq.url}
-    `);
-
     return next.handle(serverReq);
   }
 }
