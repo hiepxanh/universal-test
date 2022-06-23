@@ -12,6 +12,6 @@ import { AppComponent } from './app.component';
   providers: [
     // Add server-only providers here.
   ],
-  bootstrap: [AppComponent],
+  // bootstrap: [AppComponent],
 })
 export class AppServerModule {}

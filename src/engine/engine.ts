@@ -1,0 +1,130 @@
+import type { ImportedNgModuleProviders, Provider, Type } from '@angular/core';
+import { INITIAL_CONFIG, renderApplication, renderModule } from '@angular/platform-server';
+import { ɵInlineCriticalCssProcessor as InlineCriticalCssProcessor } from '@nguniversal/common/tools';
+import * as fs from 'fs';
+import { dirname, resolve } from 'path';
+import { URL } from 'url';
+
+/** These are the allowed options for the render */
+export interface RenderOptions {
+  appId: string;
+  providers?: Array<Provider | ImportedNgModuleProviders>;
+  url?: string;
+  document?: string;
+  documentFilePath?: string;
+  /**
+   * Reduce render blocking requests by inlining critical CSS.
+   * Defaults to true.
+   */
+  inlineCriticalCss?: boolean;
+  /**
+   * Base path location of index file.
+   * Defaults to the 'documentFilePath' dirname when not provided.
+   */
+  publicPath?: string;
+}
+
+/**
+ * A common rendering engine utility. This abstracts the logic
+ * for handling the platformServer compiler, the module cache, and
+ * the document loader
+ */
+export class CommonEngine {
+  private readonly templateCache = new Map<string, string>();
+  private readonly inlineCriticalCssProcessor: InlineCriticalCssProcessor;
+  private readonly pageExists = new Map<string, boolean>();
+
+  constructor(private application: Type<unknown>, private providers: Array<Provider | ImportedNgModuleProviders> = []) {
+    this.inlineCriticalCssProcessor = new InlineCriticalCssProcessor({
+      minify: true,
+    });
+  }
+
+  /**
+   * Render an HTML document for a specific URL with specified
+   * render options
+   */
+  async render(opts: RenderOptions): Promise<string> {
+    const { inlineCriticalCss = true } = opts;
+
+    if (opts.publicPath && opts.documentFilePath && opts.url !== undefined) {
+      const url = new URL(opts.url);
+      // Remove leading forward slash.
+      const pathname = url.pathname.substring(1);
+      const pagePath = resolve(opts.publicPath, pathname, 'index.html');
+
+      if (pagePath !== resolve(opts.documentFilePath)) {
+        // View path doesn't match with prerender path.
+        let pageExists = this.pageExists.get(pagePath);
+        if (pageExists === undefined) {
+          pageExists = await exists(pagePath);
+          this.pageExists.set(pagePath, pageExists);
+        }
+
+        if (pageExists) {
+          // Serve pre-rendered page.
+          return fs.promises.readFile(pagePath, 'utf-8');
+        }
+      }
+    }
+
+    // if opts.document dosen't exist then opts.documentFilePath must
+    const extraProviders = [...(opts.providers || []), ...(this.providers || [])];
+
+    let doc = opts.document;
+    if (!doc && opts.documentFilePath) {
+      doc = await this.getDocument(opts.documentFilePath);
+    }
+
+    if (doc) {
+      extraProviders.push({
+        provide: INITIAL_CONFIG,
+        useValue: {
+          document: inlineCriticalCss
+            ? // Workaround for https://github.com/GoogleChromeLabs/critters/issues/64
+              doc.replace(/ media="print" onload="this\.media='all'"><noscript><link .+?><\/noscript>/g, '>')
+            : doc,
+          url: opts.url,
+        },
+      });
+    }
+
+    const html = await renderApplication(this.application, { ...opts, providers: extraProviders });
+    if (!inlineCriticalCss) {
+      return html;
+    }
+
+    const { content, errors, warnings } = await this.inlineCriticalCssProcessor.process(html, {
+      outputPath: opts.publicPath ?? (opts.documentFilePath ? dirname(opts.documentFilePath) : ''),
+    });
+
+    // eslint-disable-next-line no-console
+    warnings?.forEach((m) => console.warn(m));
+    // eslint-disable-next-line no-console
+    errors?.forEach((m) => console.error(m));
+
+    return content;
+  }
+
+  /** Retrieve the document from the cache or the filesystem */
+  private async getDocument(filePath: string): Promise<string> {
+    let doc = this.templateCache.get(filePath);
+
+    if (!doc) {
+      doc = await fs.promises.readFile(filePath, 'utf-8');
+      this.templateCache.set(filePath, doc);
+    }
+
+    return doc;
+  }
+}
+
+async function exists(path: fs.PathLike): Promise<boolean> {
+  try {
+    await fs.promises.access(path, fs.constants.F_OK);
+
+    return true;
+  } catch {
+    return false;
+  }
+}

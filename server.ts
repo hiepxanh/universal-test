@@ -1,22 +1,36 @@
 import 'zone.js/node';
 
-import { ngExpressEngine } from '@nguniversal/express-engine';
+// import { ngExpressEngine } from '@nguniversal/express-engine';
 import * as express from 'express';
 import { join } from 'path';
 
 import { AppServerModule } from './src/main.server';
 import { APP_BASE_HREF } from '@angular/common';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
+import { ngExpressEngine } from 'src/engine/express-engine';
+import { AppComponent } from 'src/app/app.component';
+import { importProvidersFrom } from '@angular/core';
+import { ServerModule, ServerTransferStateModule } from '@angular/platform-server';
+import { mainProviders } from 'src/main';
 
 // The Express app is exported so that it can be used by serverless Functions.
 export function app() {
   const server = express();
   const distFolder = join(process.cwd(), 'dist/browser');
   const indexHtml = existsSync(join(distFolder, 'index.original.html')) ? 'index.original.html' : 'index';
-
+  console.log('path', join(distFolder, 'index.html'));
+  const document = readFileSync(join(distFolder, 'index.html'), 'utf-8').toString();
   // Our Universal express-engine (found @ https://github.com/angular/universal/tree/main/modules/express-engine)
   server.engine('html', ngExpressEngine({
-    bootstrap: AppServerModule,
+    // bootstrap: AppServerModule,
+    appId: 'tour-of-heroes',
+    document,
+    bootstrap: AppComponent,
+    providers: [
+      ...mainProviders,
+      importProvidersFrom(ServerModule),
+      importProvidersFrom(ServerTransferStateModule),
+    ] as any,
   }));
 
   server.set('view engine', 'html');

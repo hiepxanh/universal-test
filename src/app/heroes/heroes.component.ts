@@ -1,10 +1,14 @@
+import { CommonModule } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { RouterModule } from '@angular/router';
 
 import { Hero } from '../hero';
 import { HeroService } from '../hero.service';
 
 @Component({
+  standalone: true,
   selector: 'app-heroes',
+  imports: [CommonModule, RouterModule],
   templateUrl: './heroes.component.html',
   styleUrls: ['./heroes.component.css']
 })

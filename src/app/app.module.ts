@@ -34,14 +34,14 @@ import { isPlatformBrowser } from '@angular/common';
     )
   ],
   declarations: [
-    AppComponent,
-    DashboardComponent,
-    HeroesComponent,
-    HeroDetailComponent,
-    MessagesComponent,
-    HeroSearchComponent
+    // AppComponent,
+    // DashboardComponent,
+    // HeroesComponent,
+    // HeroDetailComponent,
+    // MessagesComponent,
+    // HeroSearchComponent
   ],
-  bootstrap: [ AppComponent ]
+  // bootstrap: [ AppComponent ]
 })
 export class AppModule {
   constructor(
