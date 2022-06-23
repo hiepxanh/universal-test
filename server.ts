@@ -4,17 +4,23 @@ import 'zone.js/node';
 import * as express from 'express';
 import { join } from 'path';
 
-import { AppServerModule } from './src/main.server';
+
+
 import { APP_BASE_HREF } from '@angular/common';
 import { existsSync, readFileSync } from 'fs';
 import { ngExpressEngine } from 'src/engine/express-engine';
 import { AppComponent } from 'src/app/app.component';
-import { importProvidersFrom } from '@angular/core';
+import { enableProdMode, importProvidersFrom } from '@angular/core';
 import { ServerModule, ServerTransferStateModule } from '@angular/platform-server';
 import { mainProviders } from 'src/app/main.provider';
 import { REQUEST } from '@nguniversal/express-engine/tokens';
 import { HTTP_INTERCEPTORS } from '@angular/common/http';
 import { UniversalInterceptor } from 'src/app/universal.interceptor';
+import { environment } from 'src/environments/environment';
+
+if (environment.production) {
+  enableProdMode();
+}
 
 // The Express app is exported so that it can be used by serverless Functions.
 export function app() {
@@ -93,4 +99,3 @@ if (moduleFilename === __filename || moduleFilename.includes('iisnode')) {
   run();
 }
 
-export * from './src/main.server';
